@@ -16,6 +16,16 @@ A small Python service (with Docker support) that fetches Instagram stories and 
 ```bash
 git clone https://github.com/vicente-higino/instagram-stories-discord-webhook.git
 cd instagram-stories-discord-webhook
+```
+
+### 2. Copy the example environment file and edit it
+
+```bash
 cp .env.exemple .env
+```
+
+### 3. Build and run with Docker Compose
+
+```bash
 docker compose up --build
 ```
