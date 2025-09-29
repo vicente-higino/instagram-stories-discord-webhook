@@ -24,7 +24,13 @@ cd instagram-stories-discord-webhook
 cp .env.exemple .env
 ```
 
-### 3. Build and run with Docker Compose
+### 3. Import your instagram session from firefox
+
+```bash
+python ./615_import_firefox_session.py -f ./app/session-YOUR_INSTAGRAM_USERNAME
+```
+
+### 4. Build and run with Docker Compose
 
 ```bash
 docker compose up --build
