@@ -16,8 +16,6 @@ if not hook_url or not USER or not profileNames:
     )
 profileNames = profileNames.split(",")
 
-# Get instance
-
 
 def send_image(file_url):
     with open(file_url, "rb") as f:
@@ -39,36 +37,39 @@ def send_webhook_message(content):
         print(f"Failed to send message. Status code: {response.status_code}")
 
 
-def send_image_with_username(file_path, username, storyId):
-    """Send the image/video file and clickable Instagram username to Discord webhook"""
+def get_story_info(media_file):
+    """Extract username, story_id, and taken_at_timestamp from metadata"""
+    base, _ = os.path.splitext(media_file)
+    meta_file = base + ".json"
+    if not os.path.exists(meta_file):
+        return None, None, None
+
+    with open(meta_file, "r", encoding="utf-8") as f:
+        try:
+            data = json.load(f)
+            node = data.get("node", {})
+            username = node.get("owner", {}).get("username")
+            story_id = node.get("id")
+            timestamp = node.get("taken_at_timestamp")
+            return username, story_id, timestamp
+        except Exception as e:
+            print(f"Error reading meta for {media_file}: {e}")
+            return None, None, None
+
+
+def send_image_with_username(file_path, username, story_id, timestamp):
+    """Send the media with clickable story link + timestamp"""
     with open(file_path, "rb") as f:
         files = {"file": f}
-        profile_url = f"https://instagram.com/stories/{username}/{storyId}"
-        data = {"content": f"Posted by: [**{username}**](<{profile_url}>)"}
+        profile_url = f"https://instagram.com/stories/{username}/{story_id}"
+        data = {
+            "content": f"Posted by: [**{username}**](<{profile_url}>) (<t:{timestamp}:R>)"
+        }
         response = requests.post(hook_url, data=data, files=files)
         if response.status_code in (200, 204):
             print(f"Sent {file_path} from {username}")
         else:
             print(f"Failed to send {file_path}. Status code: {response.status_code}")
-
-
-def get_username_from_meta(media_file):
-    """Find the .json metadata for the media file and extract username"""
-    base, _ = os.path.splitext(media_file)
-    meta_file = base + ".json"
-    if not os.path.exists(meta_file):
-        return None
-
-    with open(meta_file, "r", encoding="utf-8") as f:
-        try:
-            data = json.load(f)
-            return (
-                data.get("node", {}).get("owner", {}).get("username"),
-                data.get("node", {}).get("id"),
-            )
-        except Exception as e:
-            print(f"Error reading meta for {media_file}: {e}")
-            return None
 
 
 L = instaloader.Instaloader(
@@ -94,8 +95,9 @@ def main():
         for file in files:
             if file.endswith(".json"):
                 continue  # skip meta files directly
-            username, storyId = get_username_from_meta(file)
-            send_image_with_username(file, username, storyId)
+            username, story_id, timestamp = get_story_info(file)
+            send_image_with_username(file, username, story_id, timestamp)
+
             os.remove(file)
             base, _ = os.path.splitext(file)
             meta_file = base + ".json"
