@@ -6,8 +6,7 @@ services:
     container_name: stories-app
     # If your script reads/writes files, map local folder into container
     volumes:
-      - ./app:/app/config
+      - ./config:/app/config
     env_file:
       - .env
-    command: ["python", "main.py"]
     restart: unless-stopped

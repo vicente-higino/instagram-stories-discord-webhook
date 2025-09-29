@@ -4,15 +4,17 @@ import random
 import instaloader
 import os
 import glob
+import json
 
 hook_url = os.getenv("HOOK_URL")
 USER = os.getenv("USER")
-profileNames = os.getenv("PROFILE_NAMES").split(",")
+profileNames = os.getenv("PROFILE_NAMES")
 
 if not hook_url or not USER or not profileNames:
     raise ValueError(
         "HOOK_URL and USER and profileNames environment variables must be set."
     )
+profileNames = profileNames.split(",")
 
 # Get instance
 
@@ -37,8 +39,40 @@ def send_webhook_message(content):
         print(f"Failed to send message. Status code: {response.status_code}")
 
 
+def send_image_with_username(file_path, username, storyId):
+    """Send the image/video file and clickable Instagram username to Discord webhook"""
+    with open(file_path, "rb") as f:
+        files = {"file": f}
+        profile_url = f"https://instagram.com/stories/{username}/{storyId}"
+        data = {"content": f"Posted by: [**{username}**](<{profile_url}>)"}
+        response = requests.post(hook_url, data=data, files=files)
+        if response.status_code in (200, 204):
+            print(f"Sent {file_path} from {username}")
+        else:
+            print(f"Failed to send {file_path}. Status code: {response.status_code}")
+
+
+def get_username_from_meta(media_file):
+    """Find the .json metadata for the media file and extract username"""
+    base, _ = os.path.splitext(media_file)
+    meta_file = base + ".json"
+    if not os.path.exists(meta_file):
+        return None
+
+    with open(meta_file, "r", encoding="utf-8") as f:
+        try:
+            data = json.load(f)
+            return (
+                data.get("node", {}).get("owner", {}).get("username"),
+                data.get("node", {}).get("id"),
+            )
+        except Exception as e:
+            print(f"Error reading meta for {media_file}: {e}")
+            return None
+
+
 L = instaloader.Instaloader(
-    save_metadata=False,
+    save_metadata=True,
     compress_json=False,
     download_video_thumbnails=False,
 )
@@ -58,8 +92,15 @@ def main():
     if files:
         send_webhook_message("@here")
         for file in files:
-            send_image(file)
+            if file.endswith(".json"):
+                continue  # skip meta files directly
+            username, storyId = get_username_from_meta(file)
+            send_image_with_username(file, username, storyId)
             os.remove(file)
+            base, _ = os.path.splitext(file)
+            meta_file = base + ".json"
+            if os.path.exists(meta_file):
+                os.remove(meta_file)
 
 
 if __name__ == "__main__":
