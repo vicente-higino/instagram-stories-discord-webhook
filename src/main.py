@@ -109,7 +109,7 @@ if __name__ == "__main__":
     try:
         while True:
             main()
-            sleepTime = random.randint(30 * 60, 60 * 60)
+            sleepTime = random.randint(60 * 60 * 6, 60 * 60 * 12)
             print(f"Waiting for {int(sleepTime/60)} mins {sleepTime%60} secs")
             time.sleep(sleepTime)  # wait between 30 minutes to 1 hour
     except KeyboardInterrupt:
