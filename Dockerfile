@@ -1,5 +1,5 @@
 # Use an official lightweight Python base image
-FROM python:3.13-slim
+FROM python:3.13-alpine
 
 # Set working directory inside container
 WORKDIR /app
@@ -14,4 +14,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY ./src .
 
 # Run your script (replace script.py with your filename)
-CMD ["python", "main.py"]
+CMD ["python", "-u", "main.py"]

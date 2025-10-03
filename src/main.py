@@ -9,10 +9,11 @@ import json
 hook_url = os.getenv("HOOK_URL")
 USER = os.getenv("USER")
 profileNames = os.getenv("PROFILE_NAMES")
+user_agent = os.getenv("USER_AGENT")
 
-if not hook_url or not USER or not profileNames:
+if not hook_url or not USER or not profileNames or not user_agent:
     raise ValueError(
-        "HOOK_URL and USER and profileNames environment variables must be set."
+        "HOOK_URL and USER and profileNames and user_agent environment variables must be set."
     )
 profileNames = profileNames.split(",")
 
@@ -72,10 +73,20 @@ def send_image_with_username(file_path, username, story_id, timestamp):
             print(f"Failed to send {file_path}. Status code: {response.status_code}")
 
 
+class MyRateController(instaloader.RateController):
+    def wait_before_query(self, query_type):
+        wait_time = random.randint(30, 120)
+        print(f"Waiting for {wait_time} seconds before next query...")
+        self.sleep(wait_time)
+        super().wait_before_query(query_type)
+
+
 L = instaloader.Instaloader(
     save_metadata=True,
     compress_json=False,
     download_video_thumbnails=False,
+    rate_controller=lambda ctx: MyRateController(ctx),
+    user_agent=user_agent,
 )
 L.load_session_from_file(USER, "./config/session-" + USER)  # (login)
 profiles = [instaloader.Profile.from_username(L.context, name) for name in profileNames]
@@ -109,11 +120,13 @@ if __name__ == "__main__":
     try:
         while True:
             main()
-            sleepTime = random.randint(60 * 60 * 6, 60 * 60 * 12)
-            print(f"Waiting for {int(sleepTime/60)} mins {sleepTime%60} secs")
-            time.sleep(sleepTime)  # wait between 30 minutes to 1 hour
+            sleepTime = random.randint(60 * 60 * 1, 60 * 60 * 2)
+            print(
+                f"Waiting for {int(sleepTime/60/60)} hours {int((sleepTime/60)%60)} minutes {int(sleepTime%60)} seconds"
+            )
+            time.sleep(sleepTime)  # wait 6-12 hours
     except KeyboardInterrupt:
         print("Program terminated by user.")
     except Exception as e:
-        send_webhook_message(f"Program terminated with error: {e}")
+        send_webhook_message(f"@here Program terminated with error: {e}")
         print(f"Program terminated with error: {e}")
