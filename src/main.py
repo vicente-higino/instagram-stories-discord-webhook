@@ -5,6 +5,7 @@ import instaloader
 import os
 import glob
 import json
+import datetime
 
 hook_url = os.getenv("HOOK_URL")
 USER = os.getenv("USER")
@@ -92,6 +93,18 @@ L.load_session_from_file(USER, "./config/session-" + USER)  # (login)
 profiles = [instaloader.Profile.from_username(L.context, name) for name in profileNames]
 
 
+def extract_datetime_from_filename(filename):
+    """Extract datetime from filename like '2025-10-03_10-07-54_UTC'."""
+    base = os.path.basename(filename)
+    name, _ = os.path.splitext(base)
+    try:
+        dt_str = name.split("_UTC")[0]  # Remove _UTC and extension
+        dt = datetime.datetime.strptime(dt_str, "%Y-%m-%d_%H-%M-%S")
+        return dt
+    except Exception:
+        return datetime.datetime.max  # fallback: put unparseable files last
+
+
 def main():
     L.download_stories(
         userids=profiles,
@@ -102,6 +115,8 @@ def main():
 
     files = glob.glob("stories/*")
     if files:
+        # Sort by datetime in filename (oldest first)
+        files = sorted(files, key=extract_datetime_from_filename)
         send_webhook_message("@here")
         for file in files:
             if file.endswith(".json"):
