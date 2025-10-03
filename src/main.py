@@ -70,8 +70,10 @@ def send_image_with_username(file_path, username, story_id, timestamp):
         response = requests.post(hook_url, data=data, files=files)
         if response.status_code in (200, 204):
             print(f"Sent {file_path} from {username}")
+            return True
         else:
             print(f"Failed to send {file_path}. Status code: {response.status_code}")
+            return False
 
 
 class MyRateController(instaloader.RateController):
@@ -122,13 +124,12 @@ def main():
             if file.endswith(".json"):
                 continue  # skip meta files directly
             username, story_id, timestamp = get_story_info(file)
-            send_image_with_username(file, username, story_id, timestamp)
-
-            os.remove(file)
-            base, _ = os.path.splitext(file)
-            meta_file = base + ".json"
-            if os.path.exists(meta_file):
-                os.remove(meta_file)
+            if send_image_with_username(file, username, story_id, timestamp):
+                os.remove(file)
+                base, _ = os.path.splitext(file)
+                meta_file = base + ".json"
+                if os.path.exists(meta_file):
+                    os.remove(meta_file)
 
 
 if __name__ == "__main__":
