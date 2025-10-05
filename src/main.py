@@ -152,7 +152,7 @@ def send_with_kappa_link(file_path, username, story_id, timestamp):
     }
     response = requests.post(hook_url, json=data)
     if response.status_code in (200, 204):
-        print(f"Sent {file_path} for {username} ({kappa_url})")
+        print(f"Sent {file_path} from {username} ({kappa_url})")
         return True
     else:
         print(f"Failed to send {file_path}. Status code: {response.status_code}")
