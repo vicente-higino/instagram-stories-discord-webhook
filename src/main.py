@@ -176,9 +176,13 @@ def main():
             if file.endswith(".json"):
                 continue  # skip meta files directly
             username, story_id, timestamp = get_story_info(file)
-            sent = send_image_with_username(file, username, story_id, timestamp)
-            if not sent:
+            file_size = os.path.getsize(file)
+            if file_size > 10 * 1024 * 1024:
                 sent = send_with_kappa_link(file, username, story_id, timestamp)
+            else:
+                sent = send_image_with_username(file, username, story_id, timestamp)
+                if not sent:
+                    sent = send_with_kappa_link(file, username, story_id, timestamp)
             if sent:
                 os.remove(file)
                 base, _ = os.path.splitext(file)
