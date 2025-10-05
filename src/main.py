@@ -7,6 +7,9 @@ import glob
 import json
 import datetime
 
+# from dotenv import load_dotenv
+
+# load_dotenv()  # take environment variables from .env.
 hook_url = os.getenv("HOOK_URL")
 USER = os.getenv("USER")
 profileNames = os.getenv("PROFILE_NAMES")
@@ -107,6 +110,55 @@ def extract_datetime_from_filename(filename):
         return datetime.datetime.max  # fallback: put unparseable files last
 
 
+def upload_to_kappa_lol(file_path):
+    """
+    Uploads a file to https://kappa.lol/api/upload and returns the JSON response.
+    """
+    url = "https://kappa.lol/api/upload"
+    with open(file_path, "rb") as f:
+        files = {"file": f}
+        response = requests.post(url, files=files)
+        if response.status_code == 200:
+            try:
+                return response.json()
+            except Exception as e:
+                print(f"Failed to parse kappa.lol response: {e}")
+                return None
+        else:
+            print(f"Failed to upload to kappa.lol. Status code: {response.status_code}")
+            return None
+
+
+def send_with_kappa_link(file_path, username, story_id, timestamp):
+    """
+    Uploads the file to kappa.lol and sends a Discord embed with the kappa link and story info.
+    """
+    kappa_resp = upload_to_kappa_lol(file_path)
+    if (
+        not kappa_resp
+        or "link" not in kappa_resp
+        or "id" not in kappa_resp
+        or "ext" not in kappa_resp
+    ):
+        print("Failed to upload to kappa.lol or missing link/id/ext.")
+        return False
+
+    kappa_url = kappa_resp["link"]
+    # Use direct image URL for Discord embed image
+    image_url = f"https://kappa.lol/{kappa_resp['id']}{kappa_resp['ext']}"
+    profile_url = f"https://instagram.com/stories/{username}/{story_id}"
+    data = {
+        "content": f"Posted by: [**{username}**](<{profile_url}>) (<t:{timestamp}:R>)\n[Open on kappa.lol]({kappa_url})",
+    }
+    response = requests.post(hook_url, json=data)
+    if response.status_code in (200, 204):
+        print(f"Sent {file_path} for {username} ({kappa_url})")
+        return True
+    else:
+        print(f"Failed to send {file_path}. Status code: {response.status_code}")
+        return False
+
+
 def main():
     L.download_stories(
         userids=profiles,
@@ -124,7 +176,10 @@ def main():
             if file.endswith(".json"):
                 continue  # skip meta files directly
             username, story_id, timestamp = get_story_info(file)
-            if send_image_with_username(file, username, story_id, timestamp):
+            sent = send_image_with_username(file, username, story_id, timestamp)
+            if not sent:
+                sent = send_with_kappa_link(file, username, story_id, timestamp)
+            if sent:
                 os.remove(file)
                 base, _ = os.path.splitext(file)
                 meta_file = base + ".json"
