@@ -14,7 +14,7 @@ hook_url = os.getenv("HOOK_URL")
 USER = os.getenv("USER")
 profileNames = os.getenv("PROFILE_NAMES")
 user_agent = os.getenv("USER_AGENT")
-
+KAPPA_UPLOAD_THRESHOLD_MB = int(os.getenv("KAPPA_UPLOAD_THRESHOLD_MB", 10))  # 10MB
 if not hook_url or not USER or not profileNames or not user_agent:
     raise ValueError(
         "HOOK_URL and USER and profileNames and user_agent environment variables must be set."
@@ -87,17 +87,6 @@ class MyRateController(instaloader.RateController):
         super().wait_before_query(query_type)
 
 
-L = instaloader.Instaloader(
-    save_metadata=True,
-    compress_json=False,
-    download_video_thumbnails=False,
-    rate_controller=lambda ctx: MyRateController(ctx),
-    user_agent=user_agent,
-)
-L.load_session_from_file(USER, "./config/session-" + USER)  # (login)
-profiles = [instaloader.Profile.from_username(L.context, name) for name in profileNames]
-
-
 def extract_datetime_from_filename(filename):
     """Extract datetime from filename like '2025-10-03_10-07-54_UTC'."""
     base = os.path.basename(filename)
@@ -145,7 +134,6 @@ def send_with_kappa_link(file_path, username, story_id, timestamp):
 
     kappa_url = kappa_resp["link"]
     # Use direct image URL for Discord embed image
-    image_url = f"https://kappa.lol/{kappa_resp['id']}{kappa_resp['ext']}"
     profile_url = f"https://instagram.com/stories/{username}/{story_id}"
     data = {
         "content": f"Posted by: [**{username}**](<{profile_url}>) (<t:{timestamp}:R>)\n[Open on kappa.lol]({kappa_url})",
@@ -159,7 +147,7 @@ def send_with_kappa_link(file_path, username, story_id, timestamp):
         return False
 
 
-def main():
+def main(L: instaloader.Instaloader, profiles: list[instaloader.Profile]):
     L.download_stories(
         userids=profiles,
         filename_target="stories",
@@ -177,7 +165,7 @@ def main():
                 continue  # skip meta files directly
             username, story_id, timestamp = get_story_info(file)
             file_size = os.path.getsize(file)
-            if file_size > 10 * 1024 * 1024:
+            if file_size > KAPPA_UPLOAD_THRESHOLD_MB * 1024 * 1024:
                 sent = send_with_kappa_link(file, username, story_id, timestamp)
             else:
                 sent = send_image_with_username(file, username, story_id, timestamp)
@@ -193,8 +181,36 @@ def main():
 
 if __name__ == "__main__":
     try:
+        L = instaloader.Instaloader(
+            save_metadata=True,
+            compress_json=False,
+            download_video_thumbnails=False,
+            user_agent=user_agent,
+        )
+        L.load_session_from_file(USER, "./config/session-" + USER)  # (login)
+        if not L.context.is_logged_in:
+            print("Session file expired, please re-login.")
+            send_webhook_message(
+                f"@here Session file expired for {USER}, please re-login."
+            )
+            input("Press Enter to exit...")
+            exit(1)
+        print(f"Logged in as {L.test_login()}")
+        profiles = [
+            instaloader.Profile.from_username(L.context, name) for name in profileNames
+        ]
+        print(f"Tracking profiles: {', '.join(p.username for p in profiles)}")
+        L = instaloader.Instaloader(
+            save_metadata=True,
+            compress_json=False,
+            download_video_thumbnails=False,
+            user_agent=user_agent,
+            rate_controller=lambda ctx: MyRateController(ctx),
+        )
+        L.load_session_from_file(USER, "./config/session-" + USER)  # (login)
+
         while True:
-            main()
+            main(L, profiles)
             sleepTime = random.randint(60 * 60 * 1, 60 * 60 * 2)
             print(
                 f"Waiting for {int(sleepTime/60/60)} hours {int((sleepTime/60)%60)} minutes {int(sleepTime%60)} seconds"
