@@ -188,29 +188,30 @@ if __name__ == "__main__":
             user_agent=user_agent,
         )
         L.load_session_from_file(USER, "./config/session-" + USER)  # (login)
-        if not L.context.is_logged_in:
+        logged_in = L.test_login()
+        if logged_in is None:
             print("Session file expired, please re-login.")
             send_webhook_message(
                 f"@here Session file expired for {USER}, please re-login."
             )
-            input("Press Enter to exit...")
-            exit(1)
-        print(f"Logged in as {L.test_login()}")
+            while True:
+                time.sleep(60 * 60)  # wait indefinitely
+        print(f"Logged in as {logged_in}")
         profiles = [
             instaloader.Profile.from_username(L.context, name) for name in profileNames
         ]
         print(f"Tracking profiles: {', '.join(p.username for p in profiles)}")
-        L = instaloader.Instaloader(
+        L2 = instaloader.Instaloader(
             save_metadata=True,
             compress_json=False,
             download_video_thumbnails=False,
             user_agent=user_agent,
             rate_controller=lambda ctx: MyRateController(ctx),
         )
-        L.load_session_from_file(USER, "./config/session-" + USER)  # (login)
+        L2.load_session_from_file(USER, "./config/session-" + USER)  # (login)
 
         while True:
-            main(L, profiles)
+            main(L2, profiles)
             sleepTime = random.randint(60 * 60 * 1, 60 * 60 * 2)
             print(
                 f"Waiting for {int(sleepTime/60/60)} hours {int((sleepTime/60)%60)} minutes {int(sleepTime%60)} seconds"
@@ -221,3 +222,5 @@ if __name__ == "__main__":
     except Exception as e:
         send_webhook_message(f"@here Program terminated with error: {e}")
         print(f"Program terminated with error: {e}")
+        input("Press Enter to exit...")
+        exit(1)
