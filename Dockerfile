@@ -1,6 +1,6 @@
 # Use an official lightweight Python base image
 FROM python:3.13-alpine
-
+# RUN apk add --no-cache git
 # Set working directory inside container
 WORKDIR /app
 
@@ -9,6 +9,7 @@ COPY requirements.txt .
 
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
+# RUN pip install --no-cache-dir git+https://github.com/instaloader/instaloader.git@refs/pull/2652/merge
 
 # Copy the rest of the app
 COPY ./src .

@@ -200,6 +200,8 @@ if __name__ == "__main__":
         profiles = [
             instaloader.Profile.from_username(L.context, name) for name in profileNames
         ]
+        # profiles.append(instaloader.Profile.from_id(L.context, "22898891"))
+        profiles = [p for p in profiles if p.username in profileNames]
         print(f"Tracking profiles: {', '.join(p.username for p in profiles)}")
         L2 = instaloader.Instaloader(
             save_metadata=True,
@@ -212,7 +214,7 @@ if __name__ == "__main__":
 
         while True:
             main(L2, profiles)
-            sleepTime = random.randint(60 * 60 * 1, 60 * 60 * 2)
+            sleepTime = random.randint(60 * 60 * 4, 60 * 60 * 6)
             print(
                 f"Waiting for {int(sleepTime/60/60)} hours {int((sleepTime/60)%60)} minutes {int(sleepTime%60)} seconds"
             )
@@ -222,5 +224,5 @@ if __name__ == "__main__":
     except Exception as e:
         send_webhook_message(f"@here Program terminated with error: {e}")
         print(f"Program terminated with error: {e}")
-        input("Press Enter to exit...")
+        time.sleep(60 * 60)
         exit(1)
